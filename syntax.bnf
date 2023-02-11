@@ -1,0 +1,13 @@
+<A> ::= "A" | "An" | "a" | "an"
+
+<type> ::= <datum> | <symbol> <datum>
+<neu-type> ::= <type> | "[" <type> "]"
+
+<neu-comment> ::= ";" (<neu-alias> | <neu-function> | <neu-template>)
+  <neu-alias> ::= <A> <neu-type> "is" (<neu-direct> | <neu-union>)
+    <neu-direct> ::= (<A> | "") <neu-type>
+    <neu-union> ::= "one of" <lf> <neu-union-member>+
+      <neu-union-member> ::= "; - " <neu-type> <lf>
+  <neu-function> ::= <symbol> ":" (<neu-type-args> | "") <type>* "->" <type>
+    <neu-type-args> ::= "{" <symbol>* "}"
+  <neu-template> ::= "Template:" <lf> <neu-function>
