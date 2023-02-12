@@ -1,4 +1,4 @@
-#lang racket
+#lang typed/racket
 ;; The first three lines of this file were inserted by DrRacket. They record metadata
 ;; about the language level of this file in a form that our tools can easily process.
 #reader(lib "htdp-intermediate-lambda-reader.ss" "lang")((modname |homework 10|) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #f #t none #f () #f)))
@@ -965,6 +965,7 @@
 (check-expect (rows-to-clear (translate-lob (generate-pile 2 100) 0 3) 5) (list 3 4))
 (define (rows-to-clear lob h)
   (local [; row-full?/lob : Nat -> Boolean
+           (: row-full?/lob (-> Nat Boolean))
           ; passes current pile of bricks to row-full? function
           (define (row-full?/lob y)
             (row-full? lob y))]

@@ -5,14 +5,17 @@
 
 <neu-type> ::= <datum> | <neu-generic-type> | <neu-function-type>
 <neu-generic-type> ::= <symbol> <datum>
-<neu-function-type> ::= <opt <neu-type-args>> <type>* "->" <type>
+<neu-function-type> ::= <opt <neu-type-args>> <neu-single-type>+ "->" <neu-single-type>
    <neu-type-args> ::= "{" <symbol>* "}"
 <neu-single-type> ::= <datum> | "[" <neu-type> "]"
 
-<neu-comment> ::= ";" (<neu-alias> | <neu-annotation> | <neu-template>)
-  <neu-alias> ::= <A> <symbol> "is" (<neu-simple-alias> | <neu-union>)
-    <neu-simple-alias> ::= <opt <A>> <neu-single-type>
-    <neu-union> ::= "one of" <lf> <neu-union-member>+
-      <neu-union-member> ::= "; - " <neu-type> <lf>
-  <neu-annotation> ::= <symbol> ":" <neu-single-type>
-  <neu-template> ::= "template" <opt ":"> <opt <lf>> <neu-function>
+<neu-annotation> ::= <symbol> ":" <neu-single-type>
+
+<neu-comment> ::= <neu-toplevel-comment> | <neu-inset-comment>
+   <neu-toplevel-comment> ::= ";" (<neu-alias> | <neu-template>)
+      <neu-template> ::= "template" <opt ":"> <lf> ";" <neu-annotation>
+      <neu-alias> ::= <A> <symbol> "is" (<neu-simple-alias> | <neu-union>)
+         <neu-simple-alias> ::= <opt <A>> <neu-single-type> <lf>
+         <neu-union> ::= "one of" <lf> <neu-union-member>+
+            <neu-union-member> ::= "; - " <neu-type> <lf>
+   <neu-inset-comment> ::= <any>* ";" <neu-annotation>
