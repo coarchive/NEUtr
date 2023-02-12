@@ -1,13 +1,18 @@
-<A> ::= "A" | "An" | "a" | "an"
+# all case insensitive
 
-<type> ::= <datum> | <symbol> <datum>
-<neu-type> ::= <type> | "[" <type> "]"
+<A> ::= "a" | "an"
+<opt x> ::= ("" | x)
 
-<neu-comment> ::= ";" (<neu-alias> | <neu-function> | <neu-template>)
-  <neu-alias> ::= <A> <neu-type> "is" (<neu-direct> | <neu-union>)
-    <neu-direct> ::= (<A> | "") <neu-type>
+<neu-type> ::= <datum> | <neu-generic-type> | <neu-function-type>
+<neu-generic-type> ::= <symbol> <datum>
+<neu-function-type> ::= <opt <neu-type-args>> <type>* "->" <type>
+   <neu-type-args> ::= "{" <symbol>* "}"
+<neu-single-type> ::= <datum> | "[" <neu-type> "]"
+
+<neu-comment> ::= ";" (<neu-alias> | <neu-annotation> | <neu-template>)
+  <neu-alias> ::= <A> <symbol> "is" (<neu-simple-alias> | <neu-union>)
+    <neu-simple-alias> ::= <opt <A>> <neu-single-type>
     <neu-union> ::= "one of" <lf> <neu-union-member>+
       <neu-union-member> ::= "; - " <neu-type> <lf>
-  <neu-function> ::= <symbol> ":" (<neu-type-args> | "") <type>* "->" <type>
-    <neu-type-args> ::= "{" <symbol>* "}"
-  <neu-template> ::= "Template:" <lf> <neu-function>
+  <neu-annotation> ::= <symbol> ":" <neu-single-type>
+  <neu-template> ::= "template" <opt ":"> <opt <lf>> <neu-function>
