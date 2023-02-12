@@ -1,4 +1,6 @@
-#lang racket
+#lang typed/racket
+
+(define-type (Some t))
 
 ; A [Some t] is (list t)
 ; A None is '()

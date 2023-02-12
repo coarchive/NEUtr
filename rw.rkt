@@ -2,24 +2,20 @@
 (require "util.rkt")
 (provide (all-defined-out))
 
-(: rw\file (-> String Void))
-(define (rw\file filename)
+(define (rw\file [filename : String]) : Void
    (define out (open-output-file (rw\filename filename)))
    (write (lines->string (rw\lines (file->lines filename))) out)
    (close-output-port out))
 
-(: rw\filename (-> String String))
-(define (rw\filename filename)
+(define (rw\filename [filename : String]) : String
    (if (string-suffix? filename ".rkt")
       (string-append (slice filename 0 -4) ".t.rkt")
       filename))
 
-(: lines->string (-> Lines String))
-(define (lines->string lines)
+(define (lines->string [lines : Lines]) : String
    (foldl string-appendl "" lines))
 
-(: string-appendl (-> String String String))
-(define (string-appendl a b)
+(define (string-appendl [a : String] [b : String]) : String
    (string-append* (list a b "\n")))
 
 (define-type Line String)
@@ -28,23 +24,15 @@
 (: rw\lines (-> Lines Lines))
 (define (rw\lines lines)
    (let ([head (car lines)] [tail (cdr lines)])
-      (define comment-start? (string-indexof #\; head))
       (cond
          [(empty? lines)
             '()]
          [(Lang? head)
             (rw\lines tail)]
-         [(ToplevelComment? head)
+         [(Comment? head)
             (define comment-text (slice head 1))
-            (define subcall (rw\toplevel-comment comment-text tail))
+            (define subcall (rw\comment comment-text tail))
             (define rewritten (car subcall))
-            (define rest (cdr subcall))
-            (append rewritten (rw\lines rest))]
-         [(<= 0 comment-start?)
-            (define non-comment (slice head 0 comment-start?))
-            (define comment-text (slice head (+ 1 comment-start?)))
-            (define subcall (rw\inset-comment comment-text tail))
-            (define rewritten (list (string-append non-comment subcall)))
             (define rest (cdr subcall))
             (append rewritten (rw\lines rest))]
          [else
@@ -54,38 +42,41 @@
 (define (Lang? str)
    (string-prefix? str "#lang"))
 
-(: ToplevelComment? (-> String Boolean))
-(define (ToplevelComment? str)
+(: Comment? (-> String Boolean))
+(define (Comment? str)
    (string-prefix? str ";"))
 
-; <neu-toplevel-comment>
-(: rw\toplevel-comment (-> Line Lines (Pairof Lines Lines)))
-(define (rw\toplevel-comment comment rest)
+; <neu-comment>
+(: rw\comment (-> Line Lines (Pairof Lines Lines)))
+(define (rw\comment comment rest)
+   (define template-info? (Template? comment))
+   (define annotation-info? (Annotation? comment))
+   (define alias-info? (Alias? comment))
    (cond
-      [(Template? comment) (rw\template comment rest)]
-      [(Alias? comment) (rw\alias text rest)]
+      [template-info? (rw\template template-info? rest)]
+      [annotation-info? (rw\annotation annotation-info? rest)]
+      [alias-info? (rw\alias alias-info? rest)]
       [else (cons (list comment) rest)]))
 
-; <neu-inset-comment>
-(: rw\inset-comment (-> Line Line))
-(define (rw\inset-comment text rest)
-   (if (Annotation? text)
-      (rw\annotation text)
-      text))
 
 ; Template:
 ; Template: fn : takes -> returns
-(: Template? (-> String Boolean))
+; car: full template line, cdr: after template
+(define-type TemplateInfo (cons Line Line))
+(: Template? (-> String (U #f TemplateInfo)))
 (define (Template? text)
    (define tok1 (tok text))
    (define first-token (car tok1))
    (and
       (symbol? first-token)
-      (eq*? (symbol-downcase x) '(template template:))))
+      (eq*? (symbol-downcase first-token) '(template template:))
+      (cons text (cdr tok1))))
 
 ; variable : some type
 ; function : foo -> bar
-(: Annotation? (-> String Boolean))
+; car: annotation target, cdr: after colon
+(define-type AnnotationInfo (cons Symbol Line))
+(: Annotation? (-> String (U #f AnnotationInfo)))
 (define (Annotation? text)
    (define tok1 (tok text))
    (define first-token (car tok1))
@@ -93,11 +84,13 @@
    (define second-token (car tok2))
    (and
       (symbol? first-token)
-      (eq? ': second-token)))
+      (eq? ': second-token)
+      (cons first-token (cdr tok2))))
 
 ; A Car is a String
 ; An Color is one of\n; - x\n; - y\n; - z
-(define (Alias? text)
+(define-type AliasInfo (cons Symbol Line))
+(define (Alias? [text : String]) : (U #f AliasInfo)
    (define tok1 (tok text))
    (define first-token (car tok1))
    (define tok2 (tok (cdr tok1)))
@@ -109,7 +102,8 @@
       (A? first-token)
       (symbol? second-token)
       (symbol? third-token)
-      (eq? 'is (symbol-downcase third-token))))
+      (eq? 'is (symbol-downcase third-token))
+      (cons second-token (cdr tok3))))
 
 (: A? (-> Symbol Boolean))
 (define (A? sym) (eq*? (symbol-downcase sym) '(a an)))
@@ -117,45 +111,94 @@
 ; <neu-template>
 ; Template:\nfoo : bar
 ; Template: foo : bar
-(: rw\template (-> String Lines (Pairof Lines Lines)))
-(define (rw\template template-line rest)
-   (define tok1 (tok template-line))
-   (define after-template (cdr tok1))
-   (define tok2 (tok after-template))
-   (define should-be-eof (car tok2))
+(: rw\template (-> TemplateInfo Lines (Pairof Lines Lines)))
+(define (rw\template info rest)
+   (define fulltext : String (car info))
+   (define after-template : String (cdr info))
+   (define tok1 (tok after-template))
+   (define should-be-eof (car tok1))
+   (: effective-rest Lines)
    (define effective-rest
       (if (eq? eof should-be-eof)
          rest
          (cons after-template rest)))
    (define annotation-head? (car effective-rest))
-   (if (Annotation? annotation-head?)
-      (begin
-         (define annotation-res (rw\annotation annotation-head? (cdr effective-rest))))
+   (define annotation-info? (Annotation? annotation-head?))
+   (if annotation-info?
+      (let ()
+         (define annotation-res (rw\annotation annotation-info? (cdr effective-rest)))
          (define template-rest (prefix-template (car annotation-res)))
-         (cons (prefix-template template-rest (cdr annotation-res)))
-      (begin
+         (cons (prefix-template template-rest) (cdr annotation-res)))
+      (let ()
          (define template-line-with-error
-            (string-append template-line " <<< NEUtr: possible garbage at the end of template"))
+            (string-append fulltext "| NEUtr: garbage at end of template |" ))
          (cons (list template-line-with-error) rest))))
 
 (: prefix-template (-> Lines Lines))
-(define (prefix-template l)
-   (map (λ (l) (string-append "#;" l))))
+(define (prefix-template lines)
+   (map (λ ([l : String]) (string-append "#;" l)) lines))
 
 ; <neu-annotation>
 ; foo : bar
 ; foo : bar -> baz
 ; you'll notice that rewriting the annotation doesn't actually use any lines except for the first one.
 ; we're gonna include the lines argument anyways to keep the rw\* functions looking similar
-(: rw\annotation (-> String Lines (Pairof Lines Lines)))
-(define (rw\annotation annotation rest)
-   (define))
+(define (rw\annotation [info : AnnotationInfo] [rest : Lines]) : (Pairof Lines Lines)
+   (define (return [x : String]) : (Pairof Lines Lines)
+      (cons (list x) rest))
+   (define annotation-target : String (symbol->string (car info)))
+   (define single-type : String (rw\neu-single-type (cdr info)))
+   (define excess-type-info??? (cdr single-type))
+   (if (non-empty-string? excess-type-info???)
+      (error (string-append "Unexpected excess type info: " excess-type-info???))
+      empty)
+   (define annotation-type : String (car single-type))
+   (return (string-append "(: " annotation-target " " annotation-type ")")))
 
-(define (rw\typename name)
+(: rw\alias (-> AliasInfo Lines (Pairof Lines Lines)))
+(define (rw\alias first rest)
+   empty)
+
+(define (string-next? [needle : String] [haystack : Line]) : Boolean
+   (string-prefix? (string-trim haystack) needle))
+
+(define (rw\neu-single-type [text : Line]) : (Pairof Line Line)
+   (define tok1 (tok text))
+   (define next-token (car tok1))
+   (define (return (x : Line)) (cons x (cdr tok1)))
    (cond
-      [(string=? "List-of" name) "Listof"]
-      [(string=? "???" name) "Any"]
+      [(string-next? "{" text)
+         (error "'{' not allowed here!")]
+      [(list? next-token)
+         (if (empty? next-token)
+            '()
+            (let ([internal-string (kot-inner next-token)])
+               (return (rw\neu-type internal-string))))]
+      [else
+         (return (kot (rw\datum next-token)))]))
+
+(define (rw\datum [datum : Any])
+   (cond
+      [(list? datum)
+         (map rw\datum datum)]
+      [(symbol? datum)
+         (rw\typename datum)]
+      [else
+         datum]))
+
+(define (rw\typename [name : Symbol]) : Symbol
+   (cond
+      [(eq? 'List-of name) 'Listof]
+      [(eq? '??? name) 'Any]
       [else name]))
+
+(define (rw\neu-type [text : Line]) : Line
+   (define tok1 (tok text))
+   (define first-token (car tok1))
+   (define tok2 (tok (cdr tok1)))
+   (define second-token (car tok2))
+   )
+
 
 (: append-bar (->* (String) (Positive-Integer) String))
 (define (append-bar str [how-many 1])

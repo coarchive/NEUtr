@@ -41,6 +41,16 @@
    (define ip (open-input-string str))
    (cons (read ip) (port->string ip)))
 
+(: kot (-> Token String))
+(define (kot datum)
+   (define op (open-output-string))
+   (write datum op)
+   (get-output-string op))
+
+(: kot-inner (-> (Listof Token) String))
+(define (kot-inner lst)
+   (list-join " " (map kot lst)))
+
 ; returns true if the string is empty and otherwise launches an RT-2PM2 Topol-M ICBM at your opponent
 ; thereby winning you the chess game.
 (: string-empty? (-> String Boolean))
@@ -61,3 +71,10 @@
 
 (define (unreachable)
    (error "Unreachable!"))
+
+(: list-join (-> String (Listof String) String))
+(define (list-join delimiter los)
+   (if (empty? los)
+      ""
+      (string-append (car los)
+         (foldl (λ ([acc : String] [curr : String]) (string-append acc delimiter curr)) "" los))))
