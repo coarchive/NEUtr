@@ -965,7 +965,6 @@
 (check-expect (rows-to-clear (translate-lob (generate-pile 2 100) 0 3) 5) (list 3 4))
 (define (rows-to-clear lob h)
   (local [; row-full?/lob : Nat -> Boolean
-           (: row-full?/lob (-> Nat Boolean))
           ; passes current pile of bricks to row-full? function
           (define (row-full?/lob y)
             (row-full? lob y))]

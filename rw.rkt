@@ -21,7 +21,6 @@
 (define-type Line String)
 (define-type Lines (Listof Line))
 (define-type TypeString String)
-(define-type TypeStrings (Listof TypeString))
 
 (define (rw\lines [lines : Lines]) : Lines
    (let ([head (car lines)] [tail (cdr lines)])
@@ -246,5 +245,39 @@
       [(eq? '??? name) 'Any]
       [else name]))
 
-(define (rw\alias [info : AliasInfo]) : (Pairof Lines Lines)
-   (define symbol ))
+(define (rw\alias [info : AliasInfo] [rest : Lines]) : (Pairof Lines Lines)
+   (define typename : String (symbol->string (car info)))
+   (define rest-of-first-line (cdr info)) ; this will either be "a something" or "one of"
+   (define fuck-lisp : (Pairof String Lines) (cond
+      [(string=? rest-of-first-line "one of")
+         (rw\union rest)]
+      [else
+         (define tok1 (tok rest-of-first-line))
+         (define first-token (car tok1))
+         (cons
+            (cond
+               [(and (symbol? first-token) (A? first-token))
+                  (define tok2 (tok (cdr tok1)))
+                  (define second-token (car tok2))
+                  (rw\neu-type second-token)]
+               [else
+                  (rw\neu-type first-token)])
+            rest)]))
+   (define type (car fuck-lisp))
+   (define actual-rest (cdr fuck-lisp))
+   (cons (list (string-append "(: " typename type ")")) actual-rest))
+
+(define (rw\union [rest : Lines]) : (Pairof String Lines)
+   (define (union-members-rec (ls-jr : Lines)) : (Pairof String Lines)
+      (cond
+         [(string-prefix? (car ls-jr) "; - ")
+            (define the-actual-fucking-type (slice (car ls-jr) 4))
+            (define tok1 (tok the-actual-fucking-type))
+            (define AAAAAAAAAAAAAAAAA (rw\neu-type (car tok1)))
+            (define ALLIS-PAIN (union-members-rec (cdr ls-jr)))
+            (define noIAMBECOMEDEAD (string-append AAAAAAAAAAAAAAAAA " " (car ALLIS-PAIN)))
+            (cons noIAMBECOMEDEAD (cdr ALLIS-PAIN))]
+         [else
+            (cons "" ls-jr)]))
+   (define google-racket (union-members-rec rest))
+   (cons (string-append "(U " (car google-racket) ")") (cdr google-racket)))
