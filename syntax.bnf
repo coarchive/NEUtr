@@ -3,14 +3,18 @@
 <A> ::= "a" | "an"
 <opt x> ::= ("" | x)
 
+# neu-types will always be one datum
 <neu-type> ::= <atom> | "(" <neu-generic-type> | <neu-function-type> ")"
+<neu-generic-type> ::= <symbol> <neu-type>*
 <neu-function-type> ::= <opt <neu-type-args>> <neu-type>* "->" <neu-type>
    <neu-type-args> ::= "{" <symbol>* "}"
-<neu-generic-type> ::= <neu-type> <neu-type>*
 
 <neu-comment> ::= ";" (<neu-template> | <neu-annotation> | <neu-alias>)
-   <neu-annotation> ::= <symbol> ":" (<neu-function-type> | <neu-type>)
    <neu-template> ::= "template" <opt ":"> <lf> ";" <neu-annotation>
+
+   <neu-annotation> ::= <symbol> ":" <neu-annotation-type>
+   <neu-annotation-type> ::= <neu-function-type> | <neu-type>
+
    <neu-alias> ::= <A> <symbol> "is" (<neu-simple-alias> | <neu-union>)
       <neu-simple-alias> ::= <opt <A>> <neu-type> <lf>
       <neu-union> ::= "one of" <lf> <neu-union-member>+

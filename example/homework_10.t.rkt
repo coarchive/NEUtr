@@ -36,3 +36,5 @@
 
 (: x LOB)
 (define x '(1 1))
+
+; id : {t} t -> t

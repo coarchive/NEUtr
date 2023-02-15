@@ -20,6 +20,8 @@
 
 (define-type Line String)
 (define-type Lines (Listof Line))
+(define-type TypeString String)
+(define-type TypeStrings (Listof TypeString))
 
 (define (rw\lines [lines : Lines]) : Lines
    (let ([head (car lines)] [tail (cdr lines)])
@@ -140,33 +142,96 @@
       (cons (list x) rest))
    (define annotation-target : String (symbol->string (car info)))
    (define after-colon (cdr info))
-   (define annotation-type : String (rw\neu-type after-colon))
+   (define annotation-type : String (rw\neu-annotation-type after-colon))
    (return (string-append "(: " annotation-target " " annotation-type ")")))
 
-(: rw\alias (-> AliasInfo Lines (Pairof Lines Lines)))
-(define (rw\alias first rest)
-   empty)
 
-(define (rw\neu-single-type [text : Line]) : (Pairof Line Line)
-   (define (return (x : Line))
-      (cons x (cdr tok1)))
-   (define tok1 (tok text))
-   (define next-token (car tok1))
+(define (Function? [text : Line]) : Boolean
+   (define all-tokens (car (tok (string-append "(" text ")"))))
+   (cond
+      [(list? all-tokens)
+         (list-contains '-> all-tokens)]
+      [else
+         (error "I FUCKING KNOW IT'S A LIST YOU PIECE OF GARBAGE")]))
+
+
+; returns something like "(: x Number)"
+(define (rw\neu-annotation-type [text : Line]) : TypeString
+   (cond
+      [(Function? text)
+         (rw\neu-function text)]
+      [else
+         (rw\neu-type text)]))
+
+(define (rw\neu-function [text : Line]) : TypeString
    (cond
       [(string-next? "{" text)
-         (error "'{' not allowed here!")]
-      [(eq? eof next-token)
-         (cons "" "")]
-      [(list? next-token)
-         (return (cond
-            [(empty? next-token)
-               "'()"]
-            [else
-               ; amusingly, we unwrap the list here just to rewrap it again in rw\neu-type
-               (define internal-string (untok-inner next-token))
-               (rw\neu-type internal-string)]))]
+         (define tok1 (tok text))
+         (define type-params (car tok1))
+         (define after-type-params (cdr tok1))
+         (define type-param-string (untok type-params))
+         (define func-string (rw\neu-actual-function after-type-params))
+         (string-append "(All " type-param-string " " func-string ")")]
       [else
-         (return (untok (rw\atom next-token)))]))
+         (rw\neu-actual-function text)]))
+
+; returns something like "(-> Integer String)"
+(define (rw\neu-actual-function [text : Line]) : Line
+   (define (typestring-rec [s : String]) : String
+      (define tok1 (tok s))
+      (define next-token (car tok1))
+      (define rest (cdr tok1))
+      (cond
+         [(string-next? "{" s)
+            (error "'{' not allowed here!")]
+         [(eq? eof next-token)
+            ""]
+         [(eq? '-> next-token)
+            (typestring-rec rest)]
+         [else
+            (define rewritten (rw\neu-type next-token))
+            (string-append " " rewritten (typestring-rec rest))]))
+   (string-append "(->" (typestring-rec text) ")"))
+
+(define (rw\neu-type [token : Any]) : String
+   (cond
+      [(eq? '() token)
+         "'()"]
+      [(list? token)
+         ; this doesn't actually work lol because {} will be converted into ()
+         ; let's just pretend it works. sure hope nobody does any generic functions in neu-types!
+         (rw\neu-type-inlist (untok-inner token))]
+      [else
+         (untok (rw\atom token))]))
+
+; returns something in a list like (-> Foo Bar) or (Listof Blah)
+(define (rw\neu-type-inlist [s : String]) : String
+   (cond
+      [(Function? s)
+         (rw\neu-function s)]
+      [else
+         (rw\neu-generic-type s)]))
+
+(define (rw\neu-generic-type [s : String]) : String
+   (define tok1 (tok s))
+   (define typename (car tok1))
+   (define after-typename (cdr tok1))
+   (define (typestring-rec [s : String]) : String
+      (define tok1 (tok s))
+      (define next-token (car tok1))
+      (define rest (cdr tok1))
+      (cond
+         [(eq? eof next-token)
+            ""]
+         [else
+            (define rewritten (rw\neu-type next-token))
+            (string-append " " rewritten (typestring-rec rest))]))
+   (cond
+      [(symbol? typename)
+         (define typestring (typestring-rec after-typename))
+         (string-append "(" (symbol->string typename) " " typestring ")")]
+      [else
+         (error "The target of a generic type must be a symbol!")]))
 
 (define (rw\atom [datum : Any])
    (cond
@@ -181,31 +246,5 @@
       [(eq? '??? name) 'Any]
       [else name]))
 
-(define (rw\neu-type [text : Line]) : Line
-   (define info (get-neu-type-info text))
-   (define function? (car info))
-   (define tokens (cdr info))
-   (cond
-      [function?
-         (rw\neu-function text tokens)]
-      [else
-         (rw\neu-non-function-type text)]))
-
-(define (rw\neu-non-function [text : Line]) : Line
-   )
-
-(define-type NeuTypeInfo (Pairof
-   Boolean ; if this type info represents a function
-   (Listof Any) ; all tokens in text
-))
-(define (get-neu-type-info [text : Line]) : Boolean
-   (define all-tokens (car (tok (string-append "(" text ")"))))
-   (cond
-      [(list? all-tokens)
-         (cons (list-contains '-> all-tokens) all-tokens)]
-      [else
-         (error "I FUCKING KNOW IT'S A LIST YOU PIECE OF GARBAGE")]))
-
-(: append-bar (->* (String) (Positive-Integer) String))
-(define (append-bar str [how-many 1])
-    (apply string-append str (make-list how-many "bar")))
+(define (rw\alias [info : AliasInfo]) : (Pairof Lines Lines)
+   (define symbol ))
