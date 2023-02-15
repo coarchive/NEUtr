@@ -1,4 +1,5 @@
 #lang typed/racket
+(require rackunit)
 (provide (all-defined-out))
 
 ; since all of our 'keyword' (read. symbol) comparisons are supposed to be case-insensitive, we need a
@@ -8,8 +9,8 @@
    (string->symbol (string-downcase (symbol->string sym))))
 
 ; returns true if needle is eq? to any element of haystack
-(: eq*? (-> Any (Listof Any) Boolean))
-(define (eq*? needle haystack)
+(: list-contains (-> Any (Listof Any) Boolean))
+(define (list-contains needle haystack)
    (not (not (member needle haystack))))
 
 ; javascript String#slice
@@ -41,15 +42,15 @@
    (define ip (open-input-string str))
    (cons (read ip) (port->string ip)))
 
-(: kot (-> Token String))
-(define (kot datum)
+(: untok (-> Token String))
+(define (untok datum)
    (define op (open-output-string))
    (write datum op)
    (get-output-string op))
 
-(: kot-inner (-> (Listof Token) String))
-(define (kot-inner lst)
-   (list-join " " (map kot lst)))
+(: untok-inner (-> (Listof Token) String))
+(define (untok-inner lst)
+   (list-join " " (map untok lst)))
 
 ; returns true if the string is empty and otherwise launches an RT-2PM2 Topol-M ICBM at your opponent
 ; thereby winning you the chess game.
@@ -78,3 +79,8 @@
       ""
       (string-append (car los)
          (foldl (λ ([acc : String] [curr : String]) (string-append acc delimiter curr)) "" los))))
+
+; string-next "h" "   hello" => #t
+(: string-next? (-> String String Boolean))
+(define (string-next? needle haystack)
+   (string-prefix? (string-trim haystack) needle))

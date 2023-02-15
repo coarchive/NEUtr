@@ -3,16 +3,15 @@
 <A> ::= "a" | "an"
 <opt x> ::= ("" | x)
 
-<neu-type> ::= <neu-function-type> | <neu-non-function-type>
-<neu-function-type> ::= <opt <neu-type-args>> <neu-single-type>+ "->" <neu-single-type>
+<neu-type> ::= <atom> | "(" <neu-generic-type> | <neu-function-type> ")"
+<neu-function-type> ::= <opt <neu-type-args>> <neu-type>* "->" <neu-type>
    <neu-type-args> ::= "{" <symbol>* "}"
-<neu-non-function-type> ::= <neu-single-type> <neu-single-type>*
-<neu-single-type> ::= <atom> | <list-containing neu-type>
+<neu-generic-type> ::= <neu-type> <neu-type>*
 
 <neu-comment> ::= ";" (<neu-template> | <neu-annotation> | <neu-alias>)
-   <neu-annotation> ::= <symbol> ":" <neu-type>
+   <neu-annotation> ::= <symbol> ":" (<neu-function-type> | <neu-type>)
    <neu-template> ::= "template" <opt ":"> <lf> ";" <neu-annotation>
    <neu-alias> ::= <A> <symbol> "is" (<neu-simple-alias> | <neu-union>)
-      <neu-simple-alias> ::= <opt <A>> <neu-single-type> <lf>
+      <neu-simple-alias> ::= <opt <A>> <neu-type> <lf>
       <neu-union> ::= "one of" <lf> <neu-union-member>+
-         <neu-union-member> ::= "; - " <neu-single-type> <lf>
+         <neu-union-member> ::= "; - " <neu-type> <lf>
